@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MHD患者EPO低应答预测模型</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #3498db;
+            --primary-dark: #2980b9;
+            --secondary: #2ecc71;
+            --secondary-dark: #27ae60;
+            --danger: #e74c3c;
+            --danger-dark: #c0392b;
+            --light: #f8f9fa;
+            --dark: #343a40;
+            --gray: #6c757d;
+            --light-gray: #e9ecef;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", "STHeiti", "WenQuanYi Micro Hei", "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--dark);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: var(--gray);
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            padding: 25px;
+            margin-bottom: 25px;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        .card-title i {
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--dark);
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--light-gray);
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 25px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: center;
+            font-family: inherit;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-block {
+            display: block;
+            width: 100%;
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--secondary-dark);
+        }
+
+        .result-container {
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .result-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .risk-level {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 20px 0;
+        }
+
+        .risk-low {
+            color: var(--secondary);
+        }
+
+        .risk-high {
+            color: var(--danger);
+        }
+
+        .tree-results {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tree-result {
+            padding: 15px;
+            border-radius: 8px;
+            width: 18%;
+            min-width: 120px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .tree-0 {
+            background: rgba(46, 204, 113, 0.1);
+            color: var(--secondary-dark);
+        }
+
+        .tree-1 {
+            background: rgba(231, 76, 60, 0.1);
+            color: var(--danger-dark);
+        }
+
+        .progress-bar {
+            height: 10px;
+            background: var(--light-gray);
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 5px;
+            transition: width 1s ease-in-out;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+
+        .instructions {
+            background: rgba(52, 152, 219, 0.05);
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 5px 5px 0;
+        }
+
+        .feature-importance {
+            margin-top: 20px;
+        }
+
+        .feature-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .feature-name {
+            width: 120px;
+            font-size: 0.9rem;
+        }
+
+        .feature-value {
+            flex-grow: 1;
+            height: 8px;
+            background: var(--light-gray);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0 10px;
+        }
+
+        .feature-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 4px;
+        }
+
+        .feature-percent {
+            width: 40px;
+            text-align: right;
+            font-size: 0.9rem;
+        }
+
+        .tree-count {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-left: 5px;
+        }
+
+        h1, h2, h3, h4, h5, h6, p, span, div, li, button, input, select, textarea, label {
+            font-family: inherit;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-desktop"></i> MHD患者EPO低应答预测模型</h1>
+            <p class="subtitle">基于随机森林算法的医疗决策支持系统</p>
+        </header>
+
+        <div class="grid-container">
+            <div class="card">
+                <h2 class="card-title"><i class="fas fa-sliders-h"></i> 患者参数设置</h2>
+
+                <div class="instructions">
+                    <p>输入MHD患者临床指标，系统将基于随机森林模型预测EPO低应答风险</p>
+                </div>
+
+                <div class="input-group">
+                    <label for="cysc">Cysc (mg/L)</label>
+                    <input type="number" id="cysc" step="0.01" min="0" placeholder="例如：7.5">
+                </div>
+
+                <div class="input-group">
+                    <label for="alb">ALB (g/L)</label>
+                    <input type="number" id="alb" step="0.01" min="0" placeholder="例如：38.5">
+                </div>
+
+                <div class="input-group">
+                    <label for="bun">BUN (mmol/L)</label>
+                    <input type="number" id="bun" step="0.01" min="0" placeholder="例如：22.0">
+                </div>
+
+                <div class="input-group">
+                    <label for="ferritin">铁蛋白 (μg/L)</label>
+                    <input type="number" id="ferritin" step="0.01" min="0" placeholder="例如：75.0">
+                </div>
+
+                <div class="input-group">
+                    <label for="mg">Mg (mmol/L)</label>
+                    <input type="number" id="mg" step="0.01" min="0" placeholder="例如：1.05">
+                </div>
+
+                <div class="input-group">
+                    <label for="transferrin">转铁蛋白 (g/L)</label>
+                    <input type="number" id="transferrin" step="0.01" min="0" placeholder="例如：2.35">
+                </div>
+
+                <div class="input-group">
+                    <label for="epo">周EPO使用剂量 (U)</label>
+                    <input type="number" id="epo" step="0.01" min="0" placeholder="例如：150.0">
+                </div>
+
+                <button id="predict-btn" class="btn btn-block">
+                    <i class="fas fa-calculator"></i> 进行预测
+                </button>
+
+                <button id="reset-btn" class="btn btn-secondary btn-block" style="margin-top: 10px;">
+                    <i class="fas fa-redo"></i> 重置参数表单
+                </button>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title"><i class="fas fa-chart-line"></i> 预测结果</h2>
+
+                <div class="result-container" id="result-container">
+                    <h3 class="result-title">MHD患者EPO低应答风险预测结果</h3>
+
+                    <div class="progress-bar">
+                        <div class="progress" id="risk-progress" style="width: 0%"></div>
+                    </div>
+
+                    <div class="risk-level" id="risk-level">0%</div>
+
+                    <div id="risk-description">
+                        <p>基于随机森林模型的预测结果</p>
+                    </div>
+
+                    <div class="tree-results">
+                        <div class="tree-result tree-0" id="tree1-result">
+                            <strong>决策树 1</strong>
+                            <div>正常应答</div>
+                        </div>
+                        <div class="tree-result tree-0" id="tree2-result">
+                            <strong>决策树 2</strong>
+                            <div>正常应答</div>
+                        </div>
+                        <div class="tree-result tree-0" id="tree3-result">
+                            <strong>决策树 3</strong>
+                            <div>正常应答</div>
+                        </div>
+                        <div class="tree-result tree-0" id="tree4-result">
+                            <strong>决策树 4</strong>
+                            <div>正常应答</div>
+                        </div>
+                        <div class="tree-result tree-0" id="tree5-result">
+                            <strong>决策树 5</strong>
+                            <div>正常应答</div>
+                        </div>
+                        <div class="tree-result tree-0" id="tree6-result">
+                            <strong>决策树 6</strong>
+                            <div>正常应答</div>
+                        </div>
+                        <div class="tree-result tree-0" id="tree7-result">
+                            <strong>决策树 7</strong>
+                            <div>正常应答</div>
+                        </div>
+                        <div class="tree-result tree-0" id="tree8-result">
+                            <strong>决策树 8</strong>
+                            <div>正常应答</div>
+                        </div>
+                        <div class="tree-result tree-0" id="tree9-result">
+                            <strong>决策树 9</strong>
+                            <div>正常应答</div>
+                        </div>
+                        <div class="tree-result tree-0" id="tree10-result">
+                            <strong>决策树 10</strong>
+                            <div>正常应答</div>
+                        </div>
+                        <div class="tree-result tree-0" id="tree-summary">
+                            <strong>汇总结果</strong>
+                            <div>0/10 树预测低应答</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="initial-state">
+                    <div style="text-align: center; padding: 40px 20px; color: var(--gray);">
+                        <i class="fas fa-chart-bar" style="font-size: 3rem; margin-bottom: 15px;"></i>
+                        <p>请输入患者参数并点击"进行预测"按钮获取风险评估结果</p>
+                    </div>
+                </div>
+
+                <div class="feature-importance">
+                    <h3 class="card-title"><i class="fas fa-star"></i> 特征重要性排名 <span class="tree-count">基于随机森林模型</span></h3>
+                    <p style="margin-bottom: 15px; font-size: 0.9rem;">以下特征对模型预测影响最大：</p>
+
+                    <div class="feature-bar">
+                        <div class="feature-name">ALB</div>
+                        <div class="feature-value">
+                            <div class="feature-fill" style="width: 23%"></div>
+                        </div>
+                        <div class="feature-percent">23.0%</div>
+                    </div>
+
+                    <div class="feature-bar">
+                        <div class="feature-name">Mg</div>
+                        <div class="feature-value">
+                            <div class="feature-fill" style="width: 21.8%"></div>
+                        </div>
+                        <div class="feature-percent">21.8%</div>
+                    </div>
+
+                    <div class="feature-bar">
+                        <div class="feature-name">BUN</div>
+                        <div class="feature-value">
+                            <div class="feature-fill" style="width: 20.7%"></div>
+                        </div>
+                        <div class="feature-percent">20.7%</div>
+                    </div>
+
+                    <div class="feature-bar">
+                        <div class="feature-name">周EPO剂量</div>
+                        <div class="feature-value">
+                            <div class="feature-fill" style="width: 11.5%"></div>
+                        </div>
+                        <div class="feature-percent">11.5%</div>
+                    </div>
+
+                    <div class="feature-bar">
+                        <div class="feature-name">Cysc</div>
+                        <div class="feature-value">
+                            <div class="feature-fill" style="width: 9.2%"></div>
+                        </div>
+                        <div class="feature-percent">9.2%</div>
+                    </div>
+
+                    <div class="feature-bar">
+                        <div class="feature-name">转铁蛋白</div>
+                        <div class="feature-value">
+                            <div class="feature-fill" style="width: 9.2%"></div>
+                        </div>
+                        <div class="feature-percent">9.2%</div>
+                    </div>
+
+                    <div class="feature-bar">
+                        <div class="feature-name">铁蛋白</div>
+                        <div class="feature-value">
+                            <div class="feature-fill" style="width: 4.6%"></div>
+                        </div>
+                        <div class="feature-percent">4.6%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title"><i class="fas fa-info-circle"></i> 模型说明</h2>
+            <p>本预测模型基于随机森林算法，通过分析MHD患者的临床指标，预测其对EPO治疗的低应答风险</p>
+            <p><strong style="color:#FF7F7F">本模型及其结果仅供临床参考，不能作为唯一的诊断或治疗依据，临床决策应结合医生专业判断</strong></p>
+            <p style="margin-top: 10px;"><strong>结果解读：</strong></p>
+            <ul style="padding-left: 20px; margin-top: 5px;">
+                <li><strong>正常应答（0）</strong>：患者对EPO治疗反应良好</li>
+                <li><strong>低应答（1）</strong>：患者对EPO治疗反应不佳，可能需要调整治疗方案</li>
+            </ul>
+            <p style="margin-top: 15px;"><strong>模型特点：</strong></p>
+            <ul style="padding-left: 20px; margin-top: 5px;">
+                <li>基于10棵决策树的随机森林模型，提高预测准确性</li>
+                <li>特征重要性分析显示ALB、Mg和BUN是最重要的预测因子</li>
+                <li>直观的风险百分比和可视化展示</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>随机森林EPO低应答预测模型 &copy; 2025 - 医疗决策支持系统</p>
+        </div>
+    </div>
+
+    <script>
+        // 决策树1预测函数
+        function predictTree1(cysc, alb, bun, ferritin, mg, transferrin, epo) {
+            if (cysc <= 7.90) {
+                if (alb <= 37.75) {
+                    if (bun <= 21.70) {
+                        return 1.0;
+                    } else {
+                        return 1.0;
+                    }
+                } else {
+                    if (alb <= 39.25) {
+                        return 0.0;
+                    } else {
+                        if (ferritin <= 80.30) {
+                            if (mg <= 1.12) {
+                                return 0.0;
+                            } else {
+                                return 0.0;
+                            }
+                        } else {
+                            if (transferrin <= 2.58) {
+                                return 0.0;
+                            } else {
+                                return 1.0;
+                            }
+                        }
+                    }
+                }
+            } else {
+                if (epo <= 122.72) {
+                    if (bun <= 23.45) {
+                        return 0.0;
+                    } else {
+                        return 1.0;
+                    }
+                } else {
+                    if (mg <= 1.09) {
+                        if (epo <= 183.15) {
+                            if (transferrin <= 2.51) {
+                                return 1.0;
+                            } else {
+                                return 1.0;
+                            }
+                        } else {
+                            if (ferritin <= 94.50) {
+                                return 1.0;
+                            } else {
+                                return 1.0;
+                            }
+                        }
+                    } else {
+                        if (ferritin <= 28.45) {
+                            return 0.0;
+                        } else {
+                            if (ferritin <= 77.25) {
+                                return 1.0;
+                            } else {
+                                return 1.0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 决策树2预测函数
+        function predictTree2(cysc, alb, bun, ferritin, mg, transferrin, epo) {
+            if (bun <= 21.95) {
+                if (epo <= 155.13) {
+                    if (epo <= 124.52) {
+                        if (epo <= 119.34) {
+                            if (alb <= 42.55) {
+                                return 0.0;
+                            } else {
+                                return 0.0;
+                            }
+                        } else {
+                            return 1.0;
+                        }
+                    } else {
+                        if (mg <= 1.06) {
+                            return 1.0;
+                        } else {
+                            return 0.0;
+                        }
+                    }
+                } else {
+                    if (mg <= 1.01) {
+                        return 1.0;
+                    } else {
+                        return 0.0;
+                    }
+                }
+            } else {
+                if (bun <= 25.90) {
+                    if (epo <= 131.36) {
+                        return 0.0;
+                    } else {
+                        if (bun <= 23.55) {
+                            return 1.0;
+                        } else {
+                            if (transferrin <= 2.16) {
+                                return 1.0;
+                            } else {
+                                return 0.0;
+                            }
+                        }
+                    }
+                } else {
+                    if (alb <= 41.85) {
+                        if (cysc <= 8.27) {
+                            if (transferrin <= 2.02) {
+                                return 1.0;
+                            } else {
+                                return 1.0;
+                            }
+                        } else {
+                            return 1.0;
+                        }
+                    } else {
+                        return 0.0;
+                    }
+                }
+            }
+        }
+
+        // 决策树3预测函数
+        function predictTree3(cysc, alb, bun, ferritin, mg, transferrin, epo) {
+            if (alb <= 43.45) {
+                if (ferritin <= 37.15) {
+                    if (alb <= 37.35) {
+                        return 1.0;
+                    } else {
+                        if (transferrin <= 3.63) {
+                            if (bun <= 26.25) {
+                                return 0.0;
+                            } else {
+                                return 1.0;
+                            }
+                        } else {
+                            return 1.0;
+                        }
+                    }
+                } else {
+                    if (ferritin <= 71.05) {
+                        return 1.0;
+                    } else {
+                        if (mg <= 1.22) {
+                            if (bun <= 20.25) {
+                                return 1.0;
+                            } else {
+                                return 1.0;
+                            }
+                        } else {
+                            return 0.0;
+                        }
+                    }
+                }
+            } else {
+                if (transferrin <= 2.16) {
+                    if (cysc <= 8.52) {
+                        return 1.0;
+                    } else {
+                        return 0.0;
+                    }
+                } else {
+                    return 0.0;
+                }
+            }
+        }
+
+        // 决策树4预测函数
+        function predictTree4(cysc, alb, bun, ferritin, mg, transferrin, epo) {
+            if (bun <= 21.15) {
+                if (cysc <= 9.90) {
+                    if (transferrin <= 2.04) {
+                        return 1.0;
+                    } else {
+                        if (epo <= 161.24) {
+                            if (mg <= 1.09) {
+                                return 0.0;
+                            } else {
+                                return 0.0;
+                            }
+                        } else {
+                            return 0.0;
+                        }
+                    }
+                } else {
+                    return 1.0;
+                }
+            } else {
+                if (alb <= 42.85) {
+                    if (cysc <= 6.43) {
+                        return 1.0;
+                    } else {
+                        if (cysc <= 10.46) {
+                            if (mg <= 1.17) {
+                                return 1.0;
+                            } else {
+                                return 1.0;
+                            }
+                        } else {
+                            if (alb <= 40.95) {
+                                return 1.0;
+                            } else {
+                                return 0.0;
+                            }
+                        }
+                    }
+                } else {
+                    if (bun <= 30.10) {
+                        if (bun <= 23.10) {
+                            return 0.0;
+                        } else {
+                            if (ferritin <= 92.00) {
+                                return 0.0;
+                            } else {
+                                return 0.0;
+                            }
+                        }
+                    } else {
+                        return 1.0;
+                    }
+                }
+            }
+        }
+
+        // 决策树5预测函数
+        function predictTree5(cysc, alb, bun, ferritin, mg, transferrin, epo) {
+            if (bun <= 25.95) {
+                if (alb <= 37.20) {
+                    if (alb <= 35.75) {
+                        return 1.0;
+                    } else {
+                        return 1.0;
+                    }
+                } else {
+                    if (ferritin <= 85.30) {
+                        if (bun <= 20.20) {
+                            return 0.0;
+                        } else {
+                            if (mg <= 1.12) {
+                                return 0.0;
+                            } else {
+                                return 0.0;
+                            }
+                        }
+                    } else {
+                        if (mg <= 1.24) {
+                            if (epo <= 137.61) {
+                                return 0.0;
+                            } else {
+                                return 1.0;
+                            }
+                        } else {
+                            return 0.0;
+                        }
+                    }
+                }
+            } else {
+                if (mg <= 1.17) {
+                    return 1.0;
+                } else {
+                    if (ferritin <= 119.95) {
+                        return 1.0;
+                    } else {
+                        return 0.0;
+                    }
+                }
+            }
+        }
+
+        // 决策树6预测函数
+        function predictTree6(cysc, alb, bun, ferritin, mg, transferrin, epo) {
+            if (mg <= 1.10) {
+                if (alb <= 43.55) {
+                    if (bun <= 14.05) {
+                        return 1.0;
+                    } else {
+                        if (transferrin <= 2.12) {
+                            if (cysc <= 8.79) {
+                                return 1.0;
+                            } else {
+                                return 1.0;
+                            }
+                        } else {
+                            return 1.0;
+                        }
+                    }
+                } else {
+                    if (epo <= 152.17) {
+                        return 0.0;
+                    } else {
+                        return 1.0;
+                    }
+                }
+            } else {
+                if (bun <= 21.50) {
+                    return 0.0;
+                } else {
+                    if (bun <= 23.55) {
+                        return 1.0;
+                    } else {
+                        if (alb <= 40.55) {
+                            return 1.0;
+                        } else {
+                            if (alb <= 43.00) {
+                                return 0.0;
+                            } else {
+                                return 0.0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 决策树7预测函数
+        function predictTree7(cysc, alb, bun, ferritin, mg, transferrin, epo) {
+            if (bun <= 20.25) {
+                if (ferritin <= 83.70) {
+                    if (cysc <= 8.05) {
+                        return 0.0;
+                    } else {
+                        if (mg <= 1.18) {
+                            return 1.0;
+                        } else {
+                            return 0.0;
+                        }
+                    }
+                } else {
+                    if (mg <= 0.97) {
+                        return 1.0;
+                    } else {
+                        return 0.0;
+                    }
+                }
+            } else {
+                if (alb <= 43.30) {
+                    if (mg <= 1.18) {
+                        return 1.0;
+                    } else {
+                        if (alb <= 38.60) {
+                            return 1.0;
+                        } else {
+                            return 0.0;
+                        }
+                    }
+                } else {
+                    if (bun <= 23.10) {
+                        return 1.0;
+                    } else {
+                        if (alb <= 45.80) {
+                            return 0.0;
+                        } else {
+                            return 0.0;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 决策树8预测函数
+        function predictTree8(cysc, alb, bun, ferritin, mg, transferrin, epo) {
+            if (mg <= 1.05) {
+                if (cysc <= 8.62) {
+                    if (transferrin <= 1.87) {
+                        return 1.0;
+                    } else {
+                        if (bun <= 24.20) {
+                            return 0.0;
+                        } else {
+                            if (transferrin <= 2.58) {
+                                return 1.0;
+                            } else {
+                                return 1.0;
+                            }
+                        }
+                    }
+                } else {
+                    if (bun <= 30.85) {
+                        return 1.0;
+                    } else {
+                        if (ferritin <= 86.10) {
+                            return 1.0;
+                        } else {
+                            return 1.0;
+                        }
+                    }
+                }
+            } else {
+                if (bun <= 21.20) {
+                    return 0.0;
+                } else {
+                    if (ferritin <= 20.00) {
+                        return 0.0;
+                    } else {
+                        if (cysc <= 8.94) {
+                            if (ferritin <= 94.05) {
+                                return 0.0;
+                            } else {
+                                return 1.0;
+                            }
+                        } else {
+                            if (mg <= 1.25) {
+                                return 1.0;
+                            } else {
+                                return 0.0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 决策树9预测函数
+        function predictTree9(cysc, alb, bun, ferritin, mg, transferrin, epo) {
+            if (mg <= 1.25) {
+                if (alb <= 43.45) {
+                    if (bun <= 20.25) {
+                        if (cysc <= 7.99) {
+                            if (transferrin <= 2.52) {
+                                return 1.0;
+                            } else {
+                                return 0.0;
+                            }
+                        } else {
+                            return 1.0;
+                        }
+                    } else {
+                        if (bun <= 30.90) {
+                            return 1.0;
+                        } else {
+                            if (bun <= 33.70) {
+                                return 1.0;
+                            } else {
+                                return 1.0;
+                            }
+                        }
+                    }
+                } else {
+                    if (transferrin <= 2.18) {
+                        if (bun <= 25.75) {
+                            return 1.0;
+                        } else {
+                            return 1.0;
+                        }
+                    } else {
+                        return 0.0;
+                    }
+                }
+            } else {
+                if (alb <= 40.75) {
+                    return 0.0;
+                } else {
+                    return 0.0;
+                }
+            }
+        }
+
+        // 决策树10预测函数
+        function predictTree10(cysc, alb, bun, ferritin, mg, transferrin, epo) {
+            if (ferritin <= 17.85) {
+                if (transferrin <= 3.04) {
+                    return 0.0;
+                } else {
+                    return 0.0;
+                }
+            } else {
+                if (mg <= 1.05) {
+                    if (alb <= 44.05) {
+                        if (alb <= 41.85) {
+                            return 1.0;
+                        } else {
+                            return 1.0;
+                        }
+                    } else {
+                        return 0.0;
+                    }
+                } else {
+                    if (transferrin <= 2.09) {
+                        if (bun <= 28.70) {
+                            if (cysc <= 7.64) {
+                                return 1.0;
+                            } else {
+                                return 0.0;
+                            }
+                        } else {
+                            return 1.0;
+                        }
+                    } else {
+                        if (transferrin <= 2.44) {
+                            if (cysc <= 8.94) {
+                                return 0.0;
+                            } else {
+                                return 1.0;
+                            }
+                        } else {
+                            if (cysc <= 7.72) {
+                                return 0.0;
+                            } else {
+                                return 1.0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 决策树数组 - 包含10棵决策树的预测函数
+        const decisionTrees = [
+            predictTree1, predictTree2, predictTree3, predictTree4, predictTree5,
+            predictTree6, predictTree7, predictTree8, predictTree9, predictTree10
+        ];
+
+        // 获取DOM元素
+        const predictBtn = document.getElementById('predict-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const resultContainer = document.getElementById('result-container');
+        const initialState = document.getElementById('initial-state');
+        const riskLevel = document.getElementById('risk-level');
+        const riskProgress = document.getElementById('risk-progress');
+        const riskDescription = document.getElementById('risk-description');
+        const treeSummary = document.getElementById('tree-summary');
+
+        // 预测按钮点击事件
+        document.getElementById('predict-btn').addEventListener('click', function() {
+            // 获取输入值
+            const cysc = parseFloat(document.getElementById('cysc').value) || 0;
+            const alb = parseFloat(document.getElementById('alb').value) || 0;
+            const bun = parseFloat(document.getElementById('bun').value) || 0;
+            const ferritin = parseFloat(document.getElementById('ferritin').value) || 0;
+            const mg = parseFloat(document.getElementById('mg').value) || 0;
+            const transferrin = parseFloat(document.getElementById('transferrin').value) || 0;
+            const epo = parseFloat(document.getElementById('epo').value) || 0;
+
+            // 验证输入
+            if (cysc === 0 && alb === 0 && bun === 0 && ferritin === 0 && mg === 0 && transferrin === 0 && epo === 0) {
+                alert('请输入至少一个参数值');
+                return;
+            }
+
+            // 进行预测 - 使用10棵决策树
+            const treePredictions = [];
+            let lowResponseCount = 0;
+
+            for (let i = 0; i < decisionTrees.length; i++) {
+                const prediction = decisionTrees[i](cysc, alb, bun, ferritin, mg, transferrin, epo);
+                treePredictions.push(prediction);
+                if (prediction === 1.0) {
+                    lowResponseCount++;
+                }
+            }
+
+            // 计算低应答概率（10棵树中预测为1的比例）
+            const lowResponseProbability = (lowResponseCount / decisionTrees.length) * 100;
+
+            // 更新UI显示结果
+            document.getElementById('initial-state').style.display = 'none';
+            document.getElementById('result-container').style.display = 'block';
+
+            // 更新进度条和风险级别
+            document.getElementById('risk-progress').style.width = lowResponseProbability + '%';
+            document.getElementById('risk-level').textContent = lowResponseProbability.toFixed(1) + '%';
+
+            // 根据风险级别设置颜色和描述
+            if (lowResponseProbability < 20) {
+                document.getElementById('risk-level').className = 'risk-level risk-low';
+                document.getElementById('risk-description').innerHTML = '<p>该患者对EPO治疗反应良好的可能性较高</p>';
+            } else if (lowResponseProbability < 50) {
+                document.getElementById('risk-level').className = 'risk-level';
+                document.getElementById('risk-description').innerHTML = '<p>该患者存在一定的EPO低应答风险，建议密切关注</p>';
+            } else {
+                document.getElementById('risk-level').className = 'risk-level risk-high';
+                document.getElementById('risk-description').innerHTML = '<p>该患者EPO低应答风险较高，可能需要调整治疗方案</p>';
+            }
+
+            // 更新各决策树的结果显示（显示所有10棵树）
+            for (let i = 1; i <= 10; i++) {
+                updateTreeResult(document.getElementById(`tree${i}-result`), treePredictions[i-1], i);
+            }
+
+            // 更新汇总结果
+            document.getElementById('tree-summary').innerHTML = `<strong>汇总结果</strong><div>${lowResponseCount}/${decisionTrees.length} 树预测低应答</div>`;
+            if (lowResponseCount > decisionTrees.length / 2) {
+                document.getElementById('tree-summary').className = 'tree-result tree-1';
+            } else {
+                document.getElementById('tree-summary').className = 'tree-result tree-0';
+            }
+        });
+
+        // 更新决策树结果显示
+        function updateTreeResult(element, result, treeNum) {
+            if (result === 0) {
+                element.className = 'tree-result tree-0';
+                element.innerHTML = `<strong>决策树 ${treeNum}</strong><div>正常应答</div>`;
+            } else {
+                element.className = 'tree-result tree-1';
+                element.innerHTML = `<strong>决策树 ${treeNum}</strong><div>低应答</div>`;
+            }
+        }
+
+        // 重置按钮点击事件
+        document.getElementById('reset-btn').addEventListener('click', function() {
+            // 清空所有输入框
+            document.getElementById('cysc').value = '';
+            document.getElementById('alb').value = '';
+            document.getElementById('bun').value = '';
+            document.getElementById('ferritin').value = '';
+            document.getElementById('mg').value = '';
+            document.getElementById('transferrin').value = '';
+            document.getElementById('epo').value = '';
+
+            // 重置结果显示
+            document.getElementById('initial-state').style.display = 'block';
+            document.getElementById('result-container').style.display = 'none';
+        });
+    </script>
+</body>
+</html>
